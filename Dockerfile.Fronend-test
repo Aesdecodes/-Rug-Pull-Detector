@@ -1,0 +1,16 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package manifests and install dependencies
+COPY package*.json ./
+RUN npm ci || npm install
+
+# Copy application code
+COPY . .
+
+# Set environment variable for non-interactive CI execution
+ENV CI=true
+
+# Trigger non-interactive unit testing suite
+CMD ["npm", "test", "--", "--watchAll=false"]

@@ -1,0 +1,72 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<hudson.model.FreeStyleProject>
+  <actions/>
+  <description>Automated testing pipeline for Rug Pull Detector predictive modeling backend and React frontend containerized test suites triggered on pull request creation.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.37.1">
+      <projectUrl>https://github.com/Damola-Sodiq/-Rug-Pull-Detector/</projectUrl>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@5.2.1">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <name>origin</name>
+        <refspec>+refs/pull/*:refs/remotes/origin/pr/*</refspec>
+        <url>https://github.com/Damola-Sodiq/-Rug-Pull-Detector.git</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>${sha1}</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="empty-list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <org.jenkinsci.plugins.ghprb.GhprbTrigger plugin="ghprb@1.42.2">
+      <spec>H/5 * * * *</spec>
+      <configVersion>3</configVersion>
+      <adminlist></adminlist>
+      <allowMembersOfGroupAsAdmin>false</allowMembersOfGroupAsAdmin>
+      <organisationsList/>
+      <cron>H/5 * * * *</cron>
+      <buildDescTemplate></buildDescTemplate>
+      <onlyTriggerPhrase>false</onlyTriggerPhrase>
+      <useGitHubHooks>true</useGitHubHooks>
+      <permitAll>true</permitAll>
+      <commentFilePath></commentFilePath>
+      <whitelist></whitelist>
+      <autoCloseFailedPullRequests>false</autoCloseFailedPullRequests>
+      <displayBuildErrorsOnDownstreamBuilds>false</displayBuildErrorsOnDownstreamBuilds>
+      <whiteListTargetBranches/>
+      <blackListTargetBranches/>
+      <triggerOnEvents>
+        <org.jenkinsci.plugins.ghprb.events.GhprbPullRequestCreatedEvent/>
+      </triggerOnEvents>
+    </org.jenkinsci.plugins.ghprb.GhprbTrigger>
+    <com.cloudbees.jenkins.GitHubPushTrigger plugin="github@1.37.1">
+      <spec></spec>
+    </com.cloudbees.jenkins.GitHubPushTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;Executing automated containerized test suite for Pull Request #${ghprbPullId}&quot;
+chmod +x ./scripts/run-tests.sh
+./scripts/run-tests.sh
+</command>
+      <configuredLocalRules/>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</hudson.model.FreeStyleProject>
