@@ -4,7 +4,7 @@ import { buildAnalyzePayload, fetchTokenAnalysis, isValidAnalyzePayload } from '
 
 export const dynamic = 'force-dynamic';
 
-const loadAnalysis = cache(async (tokenAddress, totalSupply, creatorBalance, lockedLiquidity, totalLiquidity, isPotentialHoneypot) => {
+const loadAnalysis = cache(async (tokenAddress, totalSupply, creatorBalance, lockedLiquidity, totalLiquidity, isPotentialHoneypot, chainId) => {
   const payload = buildAnalyzePayload({
     tokenAddress,
     totalSupply,
@@ -12,6 +12,7 @@ const loadAnalysis = cache(async (tokenAddress, totalSupply, creatorBalance, loc
     lockedLiquidity,
     totalLiquidity,
     isPotentialHoneypot,
+    chainId,
   });
 
   if (!isValidAnalyzePayload(payload)) {
@@ -51,6 +52,7 @@ function getReportInput(tokenAddress, searchParams) {
     searchParams.lockedLiquidity,
     searchParams.totalLiquidity,
     searchParams.isPotentialHoneypot,
+    searchParams.chainId,
   ];
 }
 
@@ -105,6 +107,7 @@ export default async function TokenReportPage({ params, searchParams }) {
       tokenAddress={params.tokenAddress}
       analysis={report.analysis}
       generatedAt={new Date().toLocaleString()}
+      chainId={searchParams.chainId || report.analysis.chainId || null}
     />
   );
 }

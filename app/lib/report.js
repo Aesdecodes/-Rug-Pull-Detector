@@ -1,6 +1,10 @@
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL || 'http://127.0.0.1:8080';
 
 function toNumber(value) {
+  if (value === '' || value === null || value === undefined) {
+    return null;
+  }
+
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -13,6 +17,8 @@ export function buildAnalyzePayload(input) {
     locked_liquidity: toNumber(input.lockedLiquidity),
     total_liquidity: toNumber(input.totalLiquidity),
     is_potential_honeypot: input.isPotentialHoneypot === true || input.isPotentialHoneypot === 'true',
+    chain_id: input.chainId || null,
+    normalized_chain_data: input.normalizedChainData || null,
   };
 }
 
@@ -30,6 +36,7 @@ export function normalizeAnalysisResult(payload, apiData) {
   return {
     ...apiData,
     tokenAddress: payload.token_address,
+    chainId: payload.chain_id,
     reportHref: buildReportHref({
       tokenAddress: payload.token_address,
       totalSupply: payload.total_supply,
@@ -37,6 +44,7 @@ export function normalizeAnalysisResult(payload, apiData) {
       lockedLiquidity: payload.locked_liquidity,
       totalLiquidity: payload.total_liquidity,
       isPotentialHoneypot: payload.is_potential_honeypot,
+      chainId: payload.chain_id,
     }),
   };
 }
@@ -48,6 +56,7 @@ export function buildReportHref(input) {
     lockedLiquidity: String(input.lockedLiquidity),
     totalLiquidity: String(input.totalLiquidity),
     isPotentialHoneypot: String(Boolean(input.isPotentialHoneypot)),
+    ...(input.chainId ? { chainId: String(input.chainId) } : {}),
   });
 
   return `/reports/${encodeURIComponent(input.tokenAddress)}?${params.toString()}`;
