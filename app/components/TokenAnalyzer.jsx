@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { Search, Loader2, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+'use client';
 
-const API_URL = 'http://127.0.0.1:8080';
+import { useState } from 'react';
+import { Search, Loader2, AlertCircle } from 'lucide-react';
 
 function TokenAnalyzer({ onAnalysisComplete }) {
   const [formData, setFormData] = useState({
@@ -22,22 +21,27 @@ function TokenAnalyzer({ onAnalysisComplete }) {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/analyze`, {
-        token_address: formData.tokenAddress,
-        total_supply: formData.totalSupply,
-        creator_balance: formData.creatorBalance,
-        locked_liquidity: formData.lockedLiquidity,
-        total_liquidity: formData.totalLiquidity,
-        is_potential_honeypot: formData.isPotentialHoneypot,
-      });
-
-      if (response.data.success) {
-        const result = {
-          ...response.data.data,
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           tokenAddress: formData.tokenAddress,
+          totalSupply: formData.totalSupply,
+          creatorBalance: formData.creatorBalance,
+          lockedLiquidity: formData.lockedLiquidity,
+          totalLiquidity: formData.totalLiquidity,
+          isPotentialHoneypot: formData.isPotentialHoneypot,
+        }),
+      });
+      const payload = await response.json();
+
+      if (payload.success) {
+        onAnalysisComplete({
+          ...payload.data,
           timestamp: new Date().toISOString(),
-        };
-        onAnalysisComplete(result);
+        });
         setFormData({
           tokenAddress: '',
           totalSupply: '',
@@ -47,9 +51,9 @@ function TokenAnalyzer({ onAnalysisComplete }) {
           isPotentialHoneypot: false,
         });
       } else {
-        setError(response.data.error || 'Analysis failed');
+        setError(payload.error || 'Analysis failed');
       }
-    } catch (err) {
+    } catch (_error) {
       setError('Failed to connect to API server. Make sure the Rust backend is running.');
     } finally {
       setLoading(false);
@@ -190,6 +194,10 @@ function TokenAnalyzer({ onAnalysisComplete }) {
           )}
         </button>
       </form>
+
+      <p className="mt-4 text-xs text-gray-400">
+        Successful analyses generate shareable public report routes with server-rendered metadata.
+      </p>
     </div>
   );
 }
