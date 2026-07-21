@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Shield, AlertTriangle, CheckCircle, XCircle, Activity } from 'lucide-react';
+import { Shield, Activity } from 'lucide-react';
 import TokenAnalyzer from './components/TokenAnalyzer';
 import RiskDashboard from './components/RiskDashboard';
+import WalletConnect from './components/WalletConnect';
+import { Web3Provider } from './context/Web3Provider';
 import './index.css';
 
 function App() {
@@ -25,9 +27,12 @@ function App() {
               <p className="text-gray-400 text-sm">DeFi Token Scam Predictive Analytics</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Activity className="w-4 h-4" />
-            <span>API Status: Online</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <Activity className="w-4 h-4" />
+              <span>API Status: Online</span>
+            </div>
+            <WalletConnect />
           </div>
         </div>
       </header>
@@ -55,4 +60,10 @@ function App() {
   );
 }
 
-export default App;
+export default function AppWrapper() {
+  return (
+    <Web3Provider>
+      <App />
+    </Web3Provider>
+  );
+}
