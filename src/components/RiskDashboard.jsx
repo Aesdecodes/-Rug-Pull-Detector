@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, AlertTriangle, CheckCircle, XCircle, TrendingUp, Clock } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 function RiskDashboard({ analyzedTokens }) {
   const getRiskLevelColor = (level) => {

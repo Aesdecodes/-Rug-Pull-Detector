@@ -1,3 +1,10 @@
+import React, { useState } from 'react';
+import { Shield, Activity } from 'lucide-react';
+import TokenAnalyzer from './components/TokenAnalyzer';
+import RiskDashboard from './components/RiskDashboard';
+import WalletConnect from './components/WalletConnect';
+import { Web3Provider } from './context/Web3Provider';
+import './index.css';
 import React, { useState, useEffect } from 'react';
 import { TokenAnalyzer } from './components/TokenAnalyzer';
 import { checkHealth } from './services/api';
@@ -18,6 +25,26 @@ function App() {
   };
 
   return (
+    <div className="min-h-screen text-white">
+      {/* Header */}
+      <header className="glass-card m-4 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary-500 rounded-xl">
+              <Shield className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Rug Pull Detector</h1>
+              <p className="text-gray-400 text-sm">DeFi Token Scam Predictive Analytics</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <Activity className="w-4 h-4" />
+              <span>API Status: Online</span>
+            </div>
+            <WalletConnect />
+          </div>
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col">
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2">
@@ -55,4 +82,10 @@ function App() {
   );
 }
 
-export default App;
+export default function AppWrapper() {
+  return (
+    <Web3Provider>
+      <App />
+    </Web3Provider>
+  );
+}
