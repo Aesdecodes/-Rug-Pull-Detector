@@ -1,106 +1,310 @@
-import React, { useState } from 'react';
-import { analyzeToken } from '../services/api';
-import { ShieldAlert, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+'use client';
 
-export const TokenAnalyzer = ({ onAnalysisComplete }) => {
+import { useState, useCallback } from 'react';
+import { Search, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { useChain } from '../context/ChainProvider';
+import { buildReportHref } from '../lib/report';
+
+function TokenAnalyzer({ onAnalysisComplete }) {
+  const { activeAdapter, activeChainId } = useChain();
+  
   const [tokenAddress, setTokenAddress] = useState('');
-  const [liquidity, setLiquidity] = useState('');
-  const [holderCount, setHolderCount] = useState('');
+  const [autoFetched, setAutoFetched] = useState(null);
+  const [formOverrides, setFormOverrides] = useState({
+    totalSupply: '',
+    creatorBalance: '',
+    lockedLiquidity: '',
+    totalLiquidity: '',
+    isPotentialHoneypot: null,
+  });
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [fetchingData, setFetchingData] = useState(false);
+  const [error, setError] = useState('');
+
+  // Helper: Get the final inputs, combining auto-fetched data with overrides
+  const getFinalInputs = useCallback(() => {
+    if (!autoFetched) {
+      return {
+        tokenAddress,
+        ...formOverrides,
+      };
+    }
+    
+    return {
+      tokenAddress: autoFetched.tokenAddress,
+      tokenSymbol: autoFetched.tokenSymbol,
+      totalSupply: formOverrides.totalSupply || String(autoFetched.totalSupply),
+      creatorBalance: formOverrides.creatorBalance || String(autoFetched.creatorBalance),
+      lockedLiquidity: formOverrides.lockedLiquidity || String(autoFetched.lockedLiquidity),
+      totalLiquidity: formOverrides.totalLiquidity || String(autoFetched.totalLiquidity),
+      isPotentialHoneypot:
+        formOverrides.isPotentialHoneypot ?? autoFetched.isPotentialHoneypot,
+    };
+  }, [autoFetched, formOverrides, tokenAddress]);
+
+  const handleFetchData = useCallback(async () => {
+    if (!tokenAddress) return;
+    setFetchingData(true);
+    setError('');
+    try {
+      const riskInput = await activeAdapter.analyzeRiskForToken(tokenAddress);
+      setAutoFetched(riskInput);
+      setFormOverrides({
+        totalSupply: '',
+        creatorBalance: '',
+        lockedLiquidity: '',
+        totalLiquidity: '',
+        isPotentialHoneypot: null,
+      });
+    } catch (err) {
+      console.error(err);
+      setError(`Failed to fetch data from ${activeChainId}: ${err.message}`);
+    } finally {
+      setFetchingData(false);
+    }
+  }, [tokenAddress, activeAdapter, activeChainId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setError('');
+
     try {
-      const data = await analyzeToken({
-        address: tokenAddress,
-        liquidity: parseFloat(liquidity),
-        holder_count: parseInt(holderCount, 10),
+      const inputs = getFinalInputs();
+      
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenAddress: inputs.tokenAddress,
+          totalSupply: inputs.totalSupply,
+          creatorBalance: inputs.creatorBalance,
+          lockedLiquidity: inputs.lockedLiquidity,
+          totalLiquidity: inputs.totalLiquidity,
+          isPotentialHoneypot: inputs.isPotentialHoneypot,
+          chainId: activeChainId,
+          normalizedChainData: autoFetched?.rawChainData || null,
+        }),
       });
-      setResult(data);
-      if (onAnalysisComplete) onAnalysisComplete(data);
-    } catch (err) {
-      setError('Failed to connect to backend or analyze token. Ensure Rust server is running.');
+      const payload = await response.json();
+
+      if (payload.success) {
+        onAnalysisComplete({
+          ...payload.data,
+          timestamp: new Date().toISOString(),
+          reportHref: buildReportHref({
+            tokenAddress: inputs.tokenAddress,
+            totalSupply: inputs.totalSupply,
+            creatorBalance: inputs.creatorBalance,
+            lockedLiquidity: inputs.lockedLiquidity,
+            totalLiquidity: inputs.totalLiquidity,
+            isPotentialHoneypot: inputs.isPotentialHoneypot,
+            chainId: activeChainId,
+          }),
+        });
+        
+        setTokenAddress('');
+        setAutoFetched(null);
+        setFormOverrides({
+          totalSupply: '',
+          creatorBalance: '',
+          lockedLiquidity: '',
+          totalLiquidity: '',
+          isPotentialHoneypot: null,
+        });
+      } else {
+        setError(payload.error || 'Analysis failed');
+      }
+    } catch (_error) {
+      setError('Failed to connect to API server. Make sure the Rust backend is running.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOverrideChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormOverrides((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const getLabelForAddressField = () => {
+    switch (activeChainId) {
+      case 'stellar':
+        return 'Stellar Asset (Code:Issuer)';
+      case 'ethereum':
+        return 'Token Contract Address';
+      default:
+        return 'Asset / Token Address';
+    }
+  };
+
+  const getPlaceholderForAddressField = () => {
+    switch (activeChainId) {
+      case 'stellar':
+        return 'USDC:GA5ZSEJYB37JRC52Z40060EQ11SVF4XI...';
+      case 'ethereum':
+        return '0x...';
+      default:
+        return 'Enter address...';
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md p-6 max-w-xl mx-auto border border-zinc-200 dark:border-zinc-800">
-      <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-        <ShieldAlert className="text-indigo-500" /> Token Risk Analyzer
+    <div className="glass-card p-6">
+      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+        <Search className="w-5 h-5 text-primary-400" />
+        Token Analyzer
       </h2>
+
+      {error && (
+        <div className="mb-4 p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-danger-400" />
+          <span className="text-danger-300">{error}</span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Token Address</label>
-          <input
-            type="text"
-            required
-            placeholder="0x..."
-            value={tokenAddress}
-            onChange={(e) => setTokenAddress(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+        {/* Asset Address Field + Fetch Data Button */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-300">
+            {getLabelForAddressField()}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={tokenAddress}
+              onChange={(e) => setTokenAddress(e.target.value)}
+              placeholder={getPlaceholderForAddressField()}
+              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
+              required
+            />
+            <button
+              type="button"
+              onClick={handleFetchData}
+              disabled={!tokenAddress || fetchingData}
+              className="px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              {fetchingData ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-5 h-5" />
+              )}
+              <span>Fetch</span>
+            </button>
+          </div>
+          {autoFetched && (
+            <div className="p-3 bg-success-500/20 border border-success-500/50 rounded-lg">
+              <div className="text-sm text-success-300">
+                Data auto-fetched from chain! Adjust values below if needed.
+              </div>
+            </div>
+          )}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Liquidity (USD)</label>
-          <input
-            type="number"
-            required
-            placeholder="10000"
-            value={liquidity}
-            onChange={(e) => setLiquidity(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+
+        {/* Editable Risk Input Fields */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Total Supply
+            </label>
+            <input
+              type="number"
+              name="totalSupply"
+              value={formOverrides.totalSupply}
+              placeholder={autoFetched ? String(autoFetched.totalSupply) : '1000000'}
+              onChange={handleOverrideChange}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Creator Balance
+            </label>
+            <input
+              type="number"
+              name="creatorBalance"
+              value={formOverrides.creatorBalance}
+              placeholder={autoFetched ? String(autoFetched.creatorBalance) : '50000'}
+              onChange={handleOverrideChange}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
+            />
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Holder Count</label>
-          <input
-            type="number"
-            required
-            placeholder="150"
-            value={holderCount}
-            onChange={(e) => setHolderCount(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Locked Liquidity
+            </label>
+            <input
+              type="number"
+              name="lockedLiquidity"
+              value={formOverrides.lockedLiquidity}
+              placeholder={autoFetched ? String(autoFetched.lockedLiquidity) : '900000'}
+              onChange={handleOverrideChange}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Total Liquidity
+            </label>
+            <input
+              type="number"
+              name="totalLiquidity"
+              value={formOverrides.totalLiquidity}
+              placeholder={autoFetched ? String(autoFetched.totalLiquidity) : '1000000'}
+              onChange={handleOverrideChange}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
+            />
+          </div>
         </div>
+
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            name="isPotentialHoneypot"
+            id="honeypot"
+            checked={
+              formOverrides.isPotentialHoneypot ?? Boolean(autoFetched?.isPotentialHoneypot)
+            }
+            onChange={handleOverrideChange}
+            className="w-5 h-5 rounded bg-white/5 border-white/10 text-primary-500 focus:ring-primary-500"
+          />
+          <label htmlFor="honeypot" className="text-sm text-gray-300">
+            Potential Honeypot Detected
+          </label>
+        </div>
+
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
         >
-          {loading && <Loader2 className="animate-spin w-4 h-4" />}
-          Analyze Token Security
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Analyzing...
+            </>
+          ) : (
+            <>
+              <Search className="w-5 h-5" />
+              Analyze Token
+            </>
+          )}
         </button>
       </form>
-
-      {error && <p className="mt-4 text-sm text-red-500 text-center">{error}</p>}
-
-      {result && (
-        <div className="mt-6 p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-semibold text-zinc-800 dark:text-zinc-200">Risk Assessment Result</span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase flex items-center gap-1 ${
-              result.risk_level === 'HIGH' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-              result.risk_level === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-              'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-            }`}>
-              {result.risk_level === 'HIGH' ? <AlertTriangle size={14}/> : <ShieldCheck size={14}/>}
-              {result.risk_level} RISK
-            </span>
-          </div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Score: <strong className="text-zinc-900 dark:text-zinc-100">{result.score ?? 'N/A'}</strong></p>
-          <p className="text-xs text-zinc-500 mt-1">Details: {result.message || 'Analyzed successfully via Rust backend.'}</p>
-        </div>
-      )}
 
       <p className="mt-4 text-xs text-gray-400">
         Successful analyses generate shareable public report routes with server-rendered metadata.
       </p>
     </div>
   );
-};
+}
+
+export default TokenAnalyzer;

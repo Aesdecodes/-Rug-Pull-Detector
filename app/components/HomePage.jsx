@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Activity, Shield } from 'lucide-react';
+import { ChainSwitcher } from './ChainSwitcher';
 import TokenAnalyzer from './TokenAnalyzer';
 import RiskDashboard from './RiskDashboard';
 
@@ -39,6 +40,11 @@ export default function HomePage() {
           <p className="mt-3 text-gray-300">
             Run an analysis from the form, then open the generated public report route for server-rendered previews and shareable links.
           </p>
+        </div>
+
+        {/* Chain Switcher */}
+        <div className="mb-8">
+          <ChainSwitcher />
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">

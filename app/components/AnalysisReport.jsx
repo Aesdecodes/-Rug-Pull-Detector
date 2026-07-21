@@ -35,7 +35,7 @@ function formatPercent(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-export default function AnalysisReport({ tokenAddress, analysis, generatedAt }) {
+export default function AnalysisReport({ tokenAddress, analysis, generatedAt, chainId }) {
   return (
     <div className="min-h-screen text-white">
       <header className="glass-card m-4 p-6">
@@ -104,6 +104,7 @@ export default function AnalysisReport({ tokenAddress, analysis, generatedAt }) 
           </p>
           <div className="mt-6 space-y-3 text-sm text-gray-300">
             <p>Token address: {tokenAddress}</p>
+            <p>Chain: {chainId || analysis.chainId || 'unknown'}</p>
             <p>Risk level: {analysis.riskLevel}</p>
             <p>Score: {formatPercent(analysis.score)}</p>
           </div>
