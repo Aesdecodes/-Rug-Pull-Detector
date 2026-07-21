@@ -1,0 +1,13 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install backend dependencies
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend codebase and test files
+COPY backend/ ./backend/
+
+# Run predictive modeling backend test suite
+CMD ["pytest", "backend/", "-v"]

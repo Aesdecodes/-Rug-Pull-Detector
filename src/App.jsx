@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Activity } from 'lucide-react';
 import TokenAnalyzer from './components/TokenAnalyzer';
 import RiskDashboard from './components/RiskDashboard';
 import WalletConnect from './components/WalletConnect';
 import { Web3Provider } from './context/Web3Provider';
-import './index.css';
-import React, { useState, useEffect } from 'react';
-import { TokenAnalyzer } from './components/TokenAnalyzer';
 import { checkHealth } from './services/api';
-import { ShieldCheck, AlertCircle, Activity } from 'lucide-react';
+import './index.css';
 
 function App() {
   const [backendStatus, setBackendStatus] = useState('Checking...');
@@ -25,58 +22,32 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white bg-slate-900">
       {/* Header */}
-      <header className="glass-card m-4 p-6">
+      <header className="glass-card m-4 p-6 border-b border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary-500 rounded-xl">
-              <Shield className="w-8 h-8" />
+            <div className="p-3 bg-indigo-600 rounded-xl">
+              <Shield className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Rug Pull Detector</h1>
+              <h1 className="text-2xl font-bold text-white">Rug Pull Detector</h1>
               <p className="text-gray-400 text-sm">DeFi Token Scam Predictive Analytics</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Activity className="w-4 h-4" />
-              <span>API Status: Online</span>
+              <Activity className="w-4 h-4 text-emerald-400" />
+              <span>Backend API: <strong className="text-emerald-400">{backendStatus}</strong></span>
             </div>
             <WalletConnect />
           </div>
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col">
-      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2">
-          <Activity className="text-indigo-600" />
-          <h1 className="text-xl font-bold">Rug Pull Detector</h1>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-zinc-500">Backend API: <strong className="text-zinc-700 dark:text-zinc-300">{backendStatus}</strong></span>
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto p-6 space-y-8">
+      <main className="max-w-6xl mx-auto p-6 space-y-8">
         <TokenAnalyzer onAnalysisComplete={handleNewAnalysis} />
-
-        {history.length > 0 && (
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md p-6 border border-zinc-200 dark:border-zinc-800">
-            <h3 className="text-lg font-bold mb-4">Recent Analysis History</h3>
-            <div className="space-y-3">
-              {history.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800 text-sm">
-                  <span className="font-mono text-zinc-600 dark:text-zinc-400">{item.address || 'Token Address'}</span>
-                  <span className={`px-2 py-0.5 rounded font-semibold text-xs ${
-                    item.risk_level === 'HIGH' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  }`}>
-                    {item.risk_level}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <RiskDashboard history={history} />
       </main>
     </div>
   );
@@ -89,3 +60,4 @@ export default function AppWrapper() {
     </Web3Provider>
   );
 }
+
