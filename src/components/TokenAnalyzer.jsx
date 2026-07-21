@@ -1,197 +1,102 @@
 import React, { useState } from 'react';
-import { Search, Loader2, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import { analyzeToken } from '../services/api';
+import { ShieldAlert, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
 
-const API_URL = 'http://127.0.0.1:8080';
-
-function TokenAnalyzer({ onAnalysisComplete }) {
-  const [formData, setFormData] = useState({
-    tokenAddress: '',
-    totalSupply: '',
-    creatorBalance: '',
-    lockedLiquidity: '',
-    totalLiquidity: '',
-    isPotentialHoneypot: false,
-  });
+export const TokenAnalyzer = ({ onAnalysisComplete }) => {
+  const [tokenAddress, setTokenAddress] = useState('');
+  const [liquidity, setLiquidity] = useState('');
+  const [holderCount, setHolderCount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-
+    setError(null);
     try {
-      const response = await axios.post(`${API_URL}/api/analyze`, {
-        token_address: formData.tokenAddress,
-        total_supply: formData.totalSupply,
-        creator_balance: formData.creatorBalance,
-        locked_liquidity: formData.lockedLiquidity,
-        total_liquidity: formData.totalLiquidity,
-        is_potential_honeypot: formData.isPotentialHoneypot,
+      const data = await analyzeToken({
+        address: tokenAddress,
+        liquidity: parseFloat(liquidity),
+        holder_count: parseInt(holderCount, 10),
       });
-
-      if (response.data.success) {
-        const result = {
-          ...response.data.data,
-          tokenAddress: formData.tokenAddress,
-          timestamp: new Date().toISOString(),
-        };
-        onAnalysisComplete(result);
-        setFormData({
-          tokenAddress: '',
-          totalSupply: '',
-          creatorBalance: '',
-          lockedLiquidity: '',
-          totalLiquidity: '',
-          isPotentialHoneypot: false,
-        });
-      } else {
-        setError(response.data.error || 'Analysis failed');
-      }
+      setResult(data);
+      if (onAnalysisComplete) onAnalysisComplete(data);
     } catch (err) {
-      setError('Failed to connect to API server. Make sure the Rust backend is running.');
+      setError('Failed to connect to backend or analyze token. Ensure Rust server is running.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-  };
-
   return (
-    <div className="glass-card p-6">
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-        <Search className="w-5 h-5 text-primary-400" />
-        Token Analyzer
+    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md p-6 max-w-xl mx-auto border border-zinc-200 dark:border-zinc-800">
+      <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+        <ShieldAlert className="text-indigo-500" /> Token Risk Analyzer
       </h2>
-
-      {error && (
-        <div className="mb-4 p-4 bg-danger-500/20 border border-danger-500/50 rounded-lg flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-danger-400" />
-          <span className="text-danger-300">{error}</span>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Stellar Asset (Code:Issuer)
-          </label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Token Address</label>
           <input
             type="text"
-            name="tokenAddress"
-            value={formData.tokenAddress}
-            onChange={handleChange}
-            placeholder="USDC:GA5ZSEJYB37JRC52Z40060EQ11SVF4XI..."
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
             required
+            placeholder="0x..."
+            value={tokenAddress}
+            onChange={(e) => setTokenAddress(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Total Supply
-            </label>
-            <input
-              type="number"
-              name="totalSupply"
-              value={formData.totalSupply}
-              onChange={handleChange}
-              placeholder="1000000"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Creator Balance
-            </label>
-            <input
-              type="number"
-              name="creatorBalance"
-              value={formData.creatorBalance}
-              onChange={handleChange}
-              placeholder="50000"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
-              required
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Locked Liquidity
-            </label>
-            <input
-              type="number"
-              name="lockedLiquidity"
-              value={formData.lockedLiquidity}
-              onChange={handleChange}
-              placeholder="900000"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Total Liquidity
-            </label>
-            <input
-              type="number"
-              name="totalLiquidity"
-              value={formData.totalLiquidity}
-              onChange={handleChange}
-              placeholder="1000000"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-white placeholder-gray-500"
-              required
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Liquidity (USD)</label>
           <input
-            type="checkbox"
-            name="isPotentialHoneypot"
-            id="honeypot"
-            checked={formData.isPotentialHoneypot}
-            onChange={handleChange}
-            className="w-5 h-5 rounded bg-white/5 border-white/10 text-primary-500 focus:ring-primary-500"
+            type="number"
+            required
+            placeholder="10000"
+            value={liquidity}
+            onChange={(e) => setLiquidity(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          <label htmlFor="honeypot" className="text-sm text-gray-300">
-            Potential Honeypot Detected
-          </label>
         </div>
-
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Holder Count</label>
+          <input
+            type="number"
+            required
+            placeholder="150"
+            value={holderCount}
+            onChange={(e) => setHolderCount(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          {loading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <Search className="w-5 h-5" />
-              Analyze Token
-            </>
-          )}
+          {loading && <Loader2 className="animate-spin w-4 h-4" />}
+          Analyze Token Security
         </button>
       </form>
+
+      {error && <p className="mt-4 text-sm text-red-500 text-center">{error}</p>}
+
+      {result && (
+        <div className="mt-6 p-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">Risk Assessment Result</span>
+            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase flex items-center gap-1 ${
+              result.risk_level === 'HIGH' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+              result.risk_level === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+              'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+            }`}>
+              {result.risk_level === 'HIGH' ? <AlertTriangle size={14}/> : <ShieldCheck size={14}/>}
+              {result.risk_level} RISK
+            </span>
+          </div>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Score: <strong className="text-zinc-900 dark:text-zinc-100">{result.score ?? 'N/A'}</strong></p>
+          <p className="text-xs text-zinc-500 mt-1">Details: {result.message || 'Analyzed successfully via Rust backend.'}</p>
+        </div>
+      )}
     </div>
   );
-}
-
-export default TokenAnalyzer;
+};
