@@ -97,6 +97,10 @@ export const TokenAnalyzer = ({ onAnalysisComplete }) => {
           <p className="text-xs text-zinc-500 mt-1">Details: {result.message || 'Analyzed successfully via Rust backend.'}</p>
         </div>
       )}
+
+      <p className="mt-4 text-xs text-gray-400">
+        Successful analyses generate shareable public report routes with server-rendered metadata.
+      </p>
     </div>
   );
 };
