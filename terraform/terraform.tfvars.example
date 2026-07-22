@@ -1,0 +1,8 @@
+aws_region       = "us-east-1"
+aws_profile      = "alafiz"
+environment      = "production"
+app_name         = "detection-api"
+db_name          = "rugpulldb"
+db_username      = "dbadmin"
+db_password      = "SuperSecurePassword123!"
+container_image  = "300403499943.dkr.ecr.us-east-1.amazonaws.com/detection-api:latest"
