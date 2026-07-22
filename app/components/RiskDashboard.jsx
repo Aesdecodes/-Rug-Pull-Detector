@@ -112,6 +112,17 @@ function RiskDashboard({ analyzedTokens }) {
                 </div>
               </div>
 
+              {token.reportHref ? (
+                <div className="mb-3">
+                  <Link
+                    href={token.reportHref}
+                    className="text-sm font-medium text-primary-300 transition-colors hover:text-primary-200"
+                  >
+                    Open public report
+                  </Link>
+                </div>
+              ) : null}
+
               {/* Component Breakdown */}
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="bg-white/5 rounded p-2">

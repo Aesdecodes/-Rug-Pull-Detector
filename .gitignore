@@ -3,6 +3,7 @@
 
 # Production builds
 /build
+/.next
 
 # Environment variables
 .env
