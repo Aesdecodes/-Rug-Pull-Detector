@@ -1,13 +1,75 @@
-# Rug Pull Detector - Frontend
+# Rug Pull Detector - Frontend & Microservices
 
-React frontend for the DeFi Rug Pull Detection System.
+React frontend and predictive modeling backend for the DeFi Rug Pull Detection System.
 
 ## Prerequisites
 
 - Node.js 16+ and npm/yarn
-- Rust backend running on http://127.0.0.1:8080
+- Docker Engine 20.10+ and Docker Compose v2+
+- Python 3.10+ (for local non-containerized backend testing)
 
-## Installation
+## Environment Configuration
+
+Before running containers locally, copy `.env.example` to `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Ensure `UID` and `GID` match your local host user to prevent permission conflicts on bind mounts:
+
+```bash
+echo "UID=$(id -u)" >> .env
+echo "GID=$(id -g)" >> .env
+```
+
+## Docker Local Development & Native Linux Setup
+
+### Native Linux & Fedora Workstation Configuration
+
+To ensure seamless execution without root workarounds (`sudo`), follow these setup steps for native Linux distributions (specifically Fedora Workstation):
+
+1. **Enable and Start Docker Daemon**:
+   ```bash
+   sudo systemctl enable --now docker
+   ```
+
+2. **Configure Non-Root Docker Socket Access**:
+   Add your host user account to the `docker` group so daemon operations do not require `sudo`:
+   ```bash
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+3. **Verify Daemon Socket Permissions**:
+   Ensure `/var/run/docker.sock` has appropriate read/write permissions for the `docker` group:
+   ```bash
+   ls -la /var/run/docker.sock
+   ```
+   If required on certain runner environments, set socket permissions explicitly:
+   ```bash
+   sudo chmod 666 /var/run/docker.sock
+   ```
+
+4. **SELinux Bind Mount Permissions (Fedora Workstation)**:
+   Fedora Workstation runs SELinux in enforcing mode by default. Volumes mounted in `docker-compose.yml` include the `:z` flag (e.g., `./backend:/app/backend:z`) to automatically configure shared SELinux labels (`svirt_sandbox_file_t`), allowing containers read/write access without requiring `setenforce 0` or elevated privileges.
+
+### Running with Docker Compose
+
+Start all services in detached or interactive mode:
+
+```bash
+docker compose up
+```
+
+To run test suites via Docker Compose:
+
+```bash
+docker compose run --rm backend
+docker compose run --rm frontend
+```
+
+## Installation (Host Development)
 
 ```bash
 cd frontend
@@ -32,7 +94,7 @@ npm run build
 
 - **Token Analyzer**: Input token metrics and get instant risk analysis
 - **Risk Dashboard**: View analysis history with visual risk indicators
-- **Real-time Updates**: Connects to Rust backend API
+- **Real-time Updates**: Connects to backend API
 - **Modern UI**: Built with TailwindCSS and Lucide icons
 
 ## API Endpoints
@@ -48,3 +110,4 @@ npm run build
 - Lucide React (icons)
 - Axios (HTTP client)
 - Recharts (charts)
+

@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.Backend-test
+    container_name: rug-pull-backend
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./backend:/app/backend:z
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    environment:
+      - CI=true
+      - PYTHONUNBUFFERED=1
+    command: pytest backend/ -v
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.Frontend-test
+    container_name: rug-pull-frontend
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./:/app:z
+      - /app/node_modules
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    environment:
+      - CI=true
+    ports:
+      - "3000:3000"
+    command: npm test -- --watchAll=false
