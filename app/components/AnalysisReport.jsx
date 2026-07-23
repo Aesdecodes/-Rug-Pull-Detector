@@ -35,7 +35,21 @@ function formatPercent(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+function formatBps(value) {
+  if (value === null || value === undefined) {
+    return 'n/a';
+  }
+
+  return `${value.toFixed(0)} bps`;
+}
+
 export default function AnalysisReport({ tokenAddress, analysis, generatedAt, chainId }) {
+  const detector = analysis.detector || {};
+  const gasByOperation = detector.gas?.gasByOperation || {};
+  const gasDeltas = detector.gas?.deltas || {};
+  const storageChanges = detector.dynamicTax?.changedSlots || [];
+  const reverts = detector.conditionalReverts || {};
+
   return (
     <div className="min-h-screen text-white">
       <header className="glass-card m-4 p-6">
@@ -77,7 +91,7 @@ export default function AnalysisReport({ tokenAddress, analysis, generatedAt, ch
             <p className="text-sm uppercase tracking-[0.25em] text-gray-400">Model Score</p>
             <p className="mt-2 text-5xl font-bold">{formatPercent(analysis.score)}</p>
             <p className="mt-3 max-w-2xl text-gray-300">
-              Higher scores indicate stronger rug-pull signals based on creator ownership, liquidity protection, and honeypot behavior.
+              Higher scores indicate stronger rug-pull signals based on creator ownership, liquidity protection, honeypot behavior, and execution-path anomalies.
             </p>
           </div>
 
@@ -95,6 +109,69 @@ export default function AnalysisReport({ tokenAddress, analysis, generatedAt, ch
               <p className="mt-2 text-2xl font-semibold">{formatPercent(analysis.components.honeypot)}</p>
             </div>
           </div>
+
+          {analysis.detector ? (
+            <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
+              <h3 className="text-lg font-semibold">Dynamic Honeypot Signals</h3>
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-sm text-gray-400">Gas Delta Score</p>
+                  <p className="mt-2 text-2xl font-semibold">{formatPercent(detector.score || 0)}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-sm text-gray-400">Dynamic Tax</p>
+                  <p className="mt-2 text-2xl font-semibold">{detector.dynamicTax?.flagged ? 'Flagged' : 'Clear'}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-sm text-gray-400">Conditional Reverts</p>
+                  <p className="mt-2 text-2xl font-semibold">{reverts.flagged ? 'Flagged' : 'Clear'}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <div>
+                  <h4 className="text-sm uppercase tracking-[0.2em] text-gray-400">Gas Usage</h4>
+                  <div className="mt-3 space-y-2 text-sm text-gray-300">
+                    {Object.entries(gasByOperation).length > 0 ? (
+                      Object.entries(gasByOperation).map(([operation, value]) => (
+                        <div key={operation} className="flex items-center justify-between rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+                          <span>{operation}</span>
+                          <span>{value.toFixed(0)} gas</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p>No trade trace data supplied.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm uppercase tracking-[0.2em] text-gray-400">Storage and Reverts</h4>
+                  <div className="mt-3 space-y-2 text-sm text-gray-300">
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">Max tax before trade: {formatBps(detector.dynamicTax?.maxBeforeTaxBps)}</div>
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">Max tax after trade: {formatBps(detector.dynamicTax?.maxAfterTaxBps)}</div>
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">Storage changes: {storageChanges.length}</div>
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">Gas-limit findings: {reverts.gasLimitFindings?.length || 0}</div>
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2">Caller blacklist findings: {reverts.callerFindings?.length || 0}</div>
+                  </div>
+                </div>
+              </div>
+
+              {Object.keys(gasDeltas).length > 0 ? (
+                <div className="mt-6 rounded-xl border border-white/10 bg-black/10 p-4">
+                  <h4 className="text-sm uppercase tracking-[0.2em] text-gray-400">Gas Deltas</h4>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {Object.entries(gasDeltas).map(([key, value]) => (
+                      <div key={key} className="rounded-lg border border-white/10 px-3 py-2 text-sm text-gray-300">
+                        <span className="block text-gray-400">{key}</span>
+                        <span>{value.toFixed(0)} gas</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
         </section>
 
         <aside className="glass-card p-6">
