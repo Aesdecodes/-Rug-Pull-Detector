@@ -48,6 +48,59 @@ class RugPullPredictor:
         }
 
 
+class DynamicHoneypotDetector:
+    """Detector for gas-limit, dynamic-tax, and caller blacklist honeypots"""
+
+    @staticmethod
+    def analyze(simulation: dict) -> dict:
+        traces = simulation.get('call_sequence', [])
+        gas_by_operation = {
+            trace['operation']: trace['gas_used']
+            for trace in traces
+            if trace.get('operation') in {'approve', 'transfer', 'swapExactTokensForETH'}
+        }
+        gas_deltas = {
+            'approve_to_transfer': gas_by_operation.get('transfer', 0) - gas_by_operation.get('approve', 0),
+            'transfer_to_sell': gas_by_operation.get('swapExactTokensForETH', 0) - gas_by_operation.get('transfer', 0),
+            'approve_to_sell': gas_by_operation.get('swapExactTokensForETH', 0) - gas_by_operation.get('approve', 0),
+        }
+        before_storage = simulation.get('storage_before_trade', {})
+        after_storage = simulation.get('storage_after_trade', {})
+        changed_slots = [
+            slot for slot in set(before_storage) | set(after_storage)
+            if before_storage.get(slot) != after_storage.get(slot)
+        ]
+        before_tax = before_storage.get('sell_tax_bps', 0)
+        after_tax = after_storage.get('sell_tax_bps', 0)
+        gas_limit_reverts = [
+            trace for trace in traces
+            if trace.get('reverted') and trace.get('gas_limit', 0) < 100000
+        ]
+        caller_reverts = [
+            trace for trace in traces
+            if trace.get('reverted') and trace.get('caller') in simulation.get('blacklisted_callers', [])
+        ]
+        triggered_rules = []
+
+        if gas_deltas['approve_to_sell'] > gas_by_operation.get('approve', 1) * 3:
+            triggered_rules.append('gas_usage_delta')
+        if after_tax >= 9000 or after_tax - before_tax >= 5000:
+            triggered_rules.append('dynamic_tax_storage_change')
+        if gas_limit_reverts:
+            triggered_rules.append('gas_limit_conditional_revert')
+        if caller_reverts:
+            triggered_rules.append('caller_blacklist_conditional_revert')
+
+        return {
+            'gas_by_operation': gas_by_operation,
+            'gas_deltas': gas_deltas,
+            'changed_slots': changed_slots,
+            'tax_delta_bps': after_tax - before_tax,
+            'triggered_rules': triggered_rules,
+            'flagged': bool(triggered_rules),
+        }
+
+
 def test_predictive_model_high_risk_honeypot():
     token = {
         'address': '0xDEADBEEF',
@@ -90,3 +143,47 @@ def test_backend_health_check_simulation():
     health_status = {'status': 'healthy', 'service': 'predictive-modeling-backend', 'version': '1.0.0'}
     assert health_status['status'] == 'healthy'
     assert health_status['service'] == 'predictive-modeling-backend'
+
+
+def test_dynamic_honeypot_detector_flags_gas_tax_and_blacklist_patterns():
+    simulation = {
+        'call_sequence': [
+            {'operation': 'approve', 'gas_used': 45000, 'gas_limit': 80000, 'caller': '0xSAFE', 'reverted': False},
+            {'operation': 'transfer', 'gas_used': 65000, 'gas_limit': 100000, 'caller': '0xSAFE', 'reverted': False},
+            {'operation': 'swapExactTokensForETH', 'gas_used': 210000, 'gas_limit': 600000, 'caller': '0xSAFE', 'reverted': False},
+            {'operation': 'swapExactTokensForETH', 'gas_used': 0, 'gas_limit': 60000, 'caller': '0xSAFE', 'reverted': True},
+            {'operation': 'transfer', 'gas_used': 0, 'gas_limit': 100000, 'caller': '0xBLOCKED', 'reverted': True},
+        ],
+        'storage_before_trade': {'sell_tax_bps': 300, 'slot_tax': '0x012c'},
+        'storage_after_trade': {'sell_tax_bps': 9900, 'slot_tax': '0x26ac'},
+        'blacklisted_callers': ['0xBLOCKED'],
+    }
+
+    result = DynamicHoneypotDetector.analyze(simulation)
+
+    assert result['flagged'] is True
+    assert result['gas_deltas']['approve_to_sell'] == 165000
+    assert result['tax_delta_bps'] == 9600
+    assert 'sell_tax_bps' in result['changed_slots']
+    assert 'gas_usage_delta' in result['triggered_rules']
+    assert 'dynamic_tax_storage_change' in result['triggered_rules']
+    assert 'gas_limit_conditional_revert' in result['triggered_rules']
+    assert 'caller_blacklist_conditional_revert' in result['triggered_rules']
+
+
+def test_dynamic_honeypot_detector_allows_normal_trade_sequence():
+    simulation = {
+        'call_sequence': [
+            {'operation': 'approve', 'gas_used': 45000, 'gas_limit': 80000, 'caller': '0xSAFE', 'reverted': False},
+            {'operation': 'transfer', 'gas_used': 52000, 'gas_limit': 100000, 'caller': '0xSAFE', 'reverted': False},
+            {'operation': 'swapExactTokensForETH', 'gas_used': 95000, 'gas_limit': 200000, 'caller': '0xSAFE', 'reverted': False},
+        ],
+        'storage_before_trade': {'sell_tax_bps': 300},
+        'storage_after_trade': {'sell_tax_bps': 300},
+        'blacklisted_callers': [],
+    }
+
+    result = DynamicHoneypotDetector.analyze(simulation)
+
+    assert result['flagged'] is False
+    assert result['triggered_rules'] == []

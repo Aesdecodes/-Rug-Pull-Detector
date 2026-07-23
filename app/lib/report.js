@@ -1,3 +1,5 @@
+import { analyzeDynamicHoneypotSignals } from './honeypotDetector';
+
 const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL || 'http://127.0.0.1:8080';
 
 function toNumber(value) {
@@ -33,10 +35,28 @@ export function isValidAnalyzePayload(payload) {
 }
 
 export function normalizeAnalysisResult(payload, apiData) {
+  const chainData = payload.normalized_chain_data || {};
+  const detector = analyzeDynamicHoneypotSignals(chainData);
+  const backendScore = typeof apiData?.score === 'number' ? apiData.score : 0;
+  const score = Math.max(backendScore, detector.score);
+  const backendRiskLevel = apiData?.riskLevel || apiData?.risk_level || null;
+  const riskLevel = detector.flagged && score >= 0.8 ? 'Critical' : detector.flagged ? 'High' : backendRiskLevel || 'Low';
+
   return {
     ...apiData,
     tokenAddress: payload.token_address,
     chainId: payload.chain_id,
+    detector,
+    components: {
+      creatorOwnership: apiData?.components?.creatorOwnership ?? 0,
+      liquidityLock: apiData?.components?.liquidityLock ?? 0,
+      honeypot: apiData?.components?.honeypot ?? 0,
+      gasDelta: detector.score,
+      dynamicTax: detector.dynamicTax.flagged ? 1 : 0,
+      conditionalReverts: detector.conditionalReverts.flagged ? 1 : 0,
+    },
+    riskLevel,
+    score,
     reportHref: buildReportHref({
       tokenAddress: payload.token_address,
       totalSupply: payload.total_supply,

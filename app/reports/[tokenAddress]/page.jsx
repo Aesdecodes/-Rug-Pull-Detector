@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import AnalysisReport from '../../components/AnalysisReport';
-import { buildAnalyzePayload, fetchTokenAnalysis, isValidAnalyzePayload } from '../../lib/report';
+import { buildAnalyzePayload, fetchTokenAnalysis, isValidAnalyzePayload, normalizeAnalysisResult } from '../../lib/report';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +34,7 @@ const loadAnalysis = cache(async (tokenAddress, totalSupply, creatorBalance, loc
 
     return {
       ok: true,
-      analysis: response.data,
+      analysis: normalizeAnalysisResult(payload, response.data),
     };
   } catch (error) {
     return {
